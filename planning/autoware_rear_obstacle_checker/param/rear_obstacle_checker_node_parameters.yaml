@@ -1,0 +1,66 @@
+rear_obstacle_checker_node:
+  area:
+    range:
+      forward:
+        type: double
+      backward:
+        type: double
+
+  scene:
+    type: string_array
+    validation:
+      unique<>: []
+
+  __map_scene:
+    topic:
+      type: string
+    behavior:
+      type: string_array
+      validation:
+        unique<>: []
+        not_empty<>: []
+        subset_of<>: [[slow_down, stop, shift_left, shift_right, turn_left, turn_right]]
+    safety_condition:
+      type: string
+      validation:
+        one_of<>: [[safe, unsafe, both]]
+    target_type:
+      type: string_array
+      validation:
+        unique<>: []
+        not_empty<>: []
+        subset_of<>: [[bicycle, bus, car, motorcycle, pedestrian, trailer, truck, unknown]]
+    current_lane:
+      type: bool
+    adjacent_lane:
+      type: bool
+
+  logic:
+    predicted_path:
+      min_velocity:
+        type: double
+      max_velocity:
+        type: double
+      acceleration:
+        type: double
+      time_resolution:
+        type: double
+      time_horizon:
+        type: double
+      delay_until_departure:
+        type: double
+    rss:
+      extended_polygon_policy:
+        type: string
+      vehicle_deceleration:
+        type: double
+      vehicle_reaction_time:
+        type: double
+      vehicle_safety_time_margin:
+        type: double
+      lateral_distance_max_threshold:
+        type: double
+      longitudinal_distance_min_threshold:
+        type: double
+      longitudinal_velocity_delta_time:
+        type: double
