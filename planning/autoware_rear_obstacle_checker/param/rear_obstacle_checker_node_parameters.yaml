@@ -9,14 +9,24 @@ rear_obstacle_checker_node:
       validation:
         gt_eq<>: [0.0]
     range:
-      forward:
-        type: double
-        validation:
-          gt_eq<>: [0.0]
-      backward:
-        type: double
-        validation:
-          gt_eq<>: [0.0]
+      pointcloud:
+        forward:
+          type: double
+          validation:
+            gt_eq<>: [0.0]
+        backward:
+          type: double
+          validation:
+            gt_eq<>: [0.0]
+      object:
+        forward:
+          type: double
+          validation:
+            gt_eq<>: [0.0]
+        backward:
+          type: double
+          validation:
+            gt_eq<>: [0.0]
     predicted_path:
       min_velocity:
         type: double

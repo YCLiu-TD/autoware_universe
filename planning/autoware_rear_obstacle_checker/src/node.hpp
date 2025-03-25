@@ -68,6 +68,8 @@ struct DebugData
 
   lanelet::ConstLanelets detection_lanes;
 
+  lanelet::BasicPolygons3d detection_areas_for_pointcloud;
+
   std::vector<geometry_msgs::msg::Point> obstacle_points;
 };
 
@@ -84,6 +86,10 @@ private:
   bool is_ready() const;
 
   bool is_safe(const PredictedObjects & objects, DebugData & debug) const;
+
+  auto generate_detection_area_for_pointcloud(
+    const PlanningFactor & factor, const lanelet::ConstLanelets & current_lanes) const
+    -> lanelet::BasicPolygons3d;
 
   auto generate_detection_area(
     const PlanningFactor & factor, const lanelet::ConstLanelets & current_lanes) const
