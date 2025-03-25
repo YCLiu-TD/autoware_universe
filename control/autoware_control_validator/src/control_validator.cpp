@@ -44,14 +44,17 @@ void AccelerationValidator::validate(
 
   res.desired_acc = desired_acc_lpf.getValue().value();
   res.measured_acc = measured_acc_lpf.getValue().value();
-  res.is_valid_acc = [this]() {
-    const double des = desired_acc_lpf.getValue().value();
-    const double mes = measured_acc_lpf.getValue().value();
-    const int8_t des_sign = std::signbit(des) ? 1 : -1;
+  res.is_valid_acc = is_in_error_range();
+}
 
-    return mes <= des * (1 + des_sign * e_scale) + e_offset &&
-           mes >= des * (1 - des_sign * e_scale) + e_offset;
-  }();
+bool AccelerationValidator::is_in_error_range() const
+{
+  const double des = desired_acc_lpf.getValue().value();
+  const double mes = measured_acc_lpf.getValue().value();
+  const int8_t des_sign = std::signbit(des) ? 1 : -1;
+
+  return mes <= des * (1 + des_sign * e_scale) + e_offset &&
+         mes >= des * (1 - des_sign * e_scale) - e_offset;
 }
 
 ControlValidator::ControlValidator(const rclcpp::NodeOptions & options)
