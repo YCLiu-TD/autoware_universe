@@ -166,6 +166,22 @@ bool is_target(
   return false;
 }
 
+std::vector<geometry_msgs::msg::Point> get_obstacle_points(
+  const lanelet::ConstLanelets & detection_lanes, const pcl::PointCloud<pcl::PointXYZ> & points)
+{
+  std::vector<geometry_msgs::msg::Point> obstacle_points;
+  for (const auto & detection_lane : detection_lanes) {
+    const auto poly = detection_lane.polygon2d();
+    for (const auto p : points) {
+      if (boost::geometry::within(autoware_utils::Point2d{p.x, p.y}, poly.basicPolygon())) {
+        obstacle_points.push_back(autoware_utils::create_point(p.x, p.y, p.z));
+        break;
+      }
+    }
+  }
+  return obstacle_points;
+}
+
 lanelet::ConstLanelets get_previous_lanes_recursively(
   const lanelet::ConstLanelet & lane, const double length, const double threshold,
   const std::shared_ptr<autoware::route_handler::RouteHandler> & route_handler)
@@ -565,6 +581,23 @@ MarkerArray showSafetyCheckInfo(
     marker_array.markers.push_back(safety_check_info_text);
   }
   return marker_array;
+}
+
+MarkerArray createPointsMarkerArray(
+  const std::vector<geometry_msgs::msg::Point> & points, const std::string & ns)
+{
+  MarkerArray msg;
+
+  auto marker = autoware_utils::create_default_marker(
+    "map", rclcpp::Clock{RCL_ROS_TIME}.now(), ns, 0L, Marker::POINTS,
+    autoware_utils::create_marker_scale(0.3, 0.3, 0.3),
+    autoware_utils::create_marker_color(1.0, 0.0, 0.0, 0.999));
+  for (const auto & p : points) {
+    marker.points.push_back(p);
+  }
+  msg.markers.push_back(marker);
+
+  return msg;
 }
 }  // namespace autoware::rear_obstacle_checker::utils
 

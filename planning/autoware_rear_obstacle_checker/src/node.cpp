@@ -24,20 +24,20 @@
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-// #ifdef ROS_DISTRO_GALACTIC
-// #include <tf2_eigen/tf2_eigen.h>
-// #else
-// #include <tf2_eigen/tf2_eigen.hpp>
-// #endif
+#ifdef ROS_DISTRO_GALACTIC
+#include <tf2_eigen/tf2_eigen.h>
+#else
+#include <tf2_eigen/tf2_eigen.hpp>
+#endif
 
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-// #define EIGEN_MPL2_ONLY
-// #include <Eigen/Core>
-// #include <Eigen/Geometry>
+#define EIGEN_MPL2_ONLY
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 namespace autoware::rear_obstacle_checker
 {
@@ -48,6 +48,8 @@ RearObstacleCheckerNode::RearObstacleCheckerNode(const rclcpp::NodeOptions & nod
 : Node("rear_obstacle_checker_node", node_options),
   timer_{rclcpp::create_timer(
     this, get_clock(), 100ms, std::bind(&RearObstacleCheckerNode::on_timer, this))},
+  tf_buffer_{this->get_clock()},
+  tf_listener_{tf_buffer_},
   pub_debug_marker_{this->create_publisher<MarkerArray>("~/debug_marker", 20)},
   route_handler_{std::make_shared<autoware::route_handler::RouteHandler>()},
   param_listener_{std::make_shared<rear_obstacle_checker_node::ParamListener>(
@@ -94,6 +96,11 @@ void RearObstacleCheckerNode::take_data()
   // objects
   {
     object_ptr_ = sub_dynamic_objects_.take_data();
+  }
+
+  // pointcloud
+  {
+    pointcloud_ptr_ = sub_pointcloud_.take_data();
   }
 
   // trajectory
@@ -269,6 +276,22 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
     return true;
   }
 
+  pcl::PointCloud<pcl::PointXYZ> transformed_pointcloud;
+  if (!pointcloud_ptr_->data.empty()) {
+    geometry_msgs::msg::TransformStamped transform_stamped;
+    try {
+      transform_stamped = tf_buffer_.lookupTransform(
+        "map", pointcloud_ptr_->header.frame_id, pointcloud_ptr_->header.stamp,
+        rclcpp::Duration::from_seconds(0.1));
+    } catch (tf2::TransformException & e) {
+      RCLCPP_WARN(get_logger(), "no transform found for no_ground_pointcloud: %s", e.what());
+    }
+
+    Eigen::Affine3f isometry = tf2::transformToEigen(transform_stamped.transform).cast<float>();
+    pcl::fromROSMsg(*pointcloud_ptr_, transformed_pointcloud);
+    autoware_utils::transform_pointcloud(transformed_pointcloud, transformed_pointcloud, isometry);
+  }
+
   PredictedObjects objects;
   for (const auto & factor : factors_ptr_->factors) {
     if (p.scene_map.count(factor.module) == 0) {
@@ -298,6 +321,9 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
             obj, lane, yaw_threshold);
         });
     objects.objects.insert(objects.objects.end(), targets.objects.begin(), targets.objects.end());
+
+    const auto danger_points = utils::get_obstacle_points(detection_lanes, transformed_pointcloud);
+    debug.obstacle_points = danger_points;
   }
 
   const auto now = this->now();
@@ -394,6 +420,10 @@ void RearObstacleCheckerNode::publish_marker(const DebugData & debug) const
     add(lanelet::visualization::laneletsAsTriangleMarkerArray(
       "detection_lanes", debug.detection_lanes,
       autoware_utils::create_marker_color(1.0, 0.0, 0.0, 0.2)));
+  }
+
+  {
+    add(utils::createPointsMarkerArray(debug.obstacle_points, "obstacle_points"));
   }
 
   {

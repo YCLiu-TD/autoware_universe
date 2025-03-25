@@ -67,6 +67,8 @@ struct DebugData
   behavior_path_planner::utils::path_safety_checker::CollisionCheckDebugMap collision_check;
 
   lanelet::ConstLanelets detection_lanes;
+
+  std::vector<geometry_msgs::msg::Point> obstacle_points;
 };
 
 class RearObstacleCheckerNode : public rclcpp::Node
@@ -94,6 +96,10 @@ private:
   void publish_marker(const DebugData & debug) const;
 
   rclcpp::TimerBase::SharedPtr timer_;
+
+  tf2_ros::Buffer tf_buffer_;
+
+  tf2_ros::TransformListener tf_listener_;
 
   rclcpp::Publisher<MarkerArray>::SharedPtr pub_debug_marker_;
 
