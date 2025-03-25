@@ -4,8 +4,8 @@
       on_time_buffer: 0.3
       off_time_buffer: 0.3
       range:
-        forward: 5.0
-        backward: 50.0
+        forward: 10.0
+        backward: 100.0
       predicted_path:
         # predicted path parameters
         min_velocity: 1.38                              # [m/s]

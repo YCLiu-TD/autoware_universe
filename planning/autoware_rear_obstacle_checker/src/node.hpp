@@ -84,14 +84,14 @@ private:
   bool is_safe(const PredictedObjects & objects, DebugData & debug) const;
 
   auto generate_detection_area(
-    const PlanningFactor & factor, const lanelet::ConstLanelet & closest_lanelet) const
+    const PlanningFactor & factor, const lanelet::ConstLanelets & current_lanes) const
     -> lanelet::ConstLanelets;
 
   void update(diagnostic_updater::DiagnosticStatusWrapper & stat);
 
   bool is_safe(DebugData & debug);
 
-  void publish_marker(const DebugData & debug);
+  void publish_marker(const DebugData & debug) const;
 
   rclcpp::TimerBase::SharedPtr timer_;
 

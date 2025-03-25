@@ -163,29 +163,25 @@ void RearObstacleCheckerNode::on_timer()
 }
 
 auto RearObstacleCheckerNode::generate_detection_area(
-  const PlanningFactor & factor, const lanelet::ConstLanelet & closest_lanelet) const
+  const PlanningFactor & factor, const lanelet::ConstLanelets & current_lanes) const
   -> lanelet::ConstLanelets
 {
   const auto p = param_listener_->get_params();
 
   const auto config = p.scene_map.at(factor.module);
 
-  const auto ego_succeeding_lanes = route_handler_->getLaneletSequence(
-    closest_lanelet, odometry_ptr_->pose.pose, p.common.range.forward, p.common.range.backward);
-
   lanelet::ConstLanelets detection_lanes{};
 
   if (factor.behavior == PlanningFactor::SHIFT_LEFT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, false, p.common.range.forward,
-        p.common.range.backward);
+        current_lanes, odometry_ptr_->pose.pose, route_handler_, false, p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
-      const auto half_lanes = [&ego_succeeding_lanes, this]() {
+      const auto half_lanes = [&current_lanes, this]() {
         lanelet::ConstLanelets ret{};
-        for (const auto & lane : ego_succeeding_lanes) {
+        for (const auto & lane : current_lanes) {
           ret.push_back(
             utils::generateHalfLanelet(lane, false, 0.5 * vehicle_info_.vehicle_width_m));
         }
@@ -198,14 +194,13 @@ auto RearObstacleCheckerNode::generate_detection_area(
   if (factor.behavior == PlanningFactor::TURN_LEFT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, false, p.common.range.forward,
-        p.common.range.backward);
+        current_lanes, odometry_ptr_->pose.pose, route_handler_, false, p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
-      const auto half_lanes = [&ego_succeeding_lanes, this]() {
+      const auto half_lanes = [&current_lanes, this]() {
         lanelet::ConstLanelets ret{};
-        for (const auto & lane : ego_succeeding_lanes) {
+        for (const auto & lane : current_lanes) {
           ret.push_back(
             utils::generateHalfLanelet(lane, false, 0.5 * vehicle_info_.vehicle_width_m));
         }
@@ -218,14 +213,13 @@ auto RearObstacleCheckerNode::generate_detection_area(
   if (factor.behavior == PlanningFactor::SHIFT_RIGHT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, true, p.common.range.forward,
-        p.common.range.backward);
+        current_lanes, odometry_ptr_->pose.pose, route_handler_, true, p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
-      const auto half_lanes = [&ego_succeeding_lanes, this]() {
+      const auto half_lanes = [&current_lanes, this]() {
         lanelet::ConstLanelets ret{};
-        for (const auto & lane : ego_succeeding_lanes) {
+        for (const auto & lane : current_lanes) {
           ret.push_back(
             utils::generateHalfLanelet(lane, true, 0.5 * vehicle_info_.vehicle_width_m));
         }
@@ -238,14 +232,13 @@ auto RearObstacleCheckerNode::generate_detection_area(
   if (factor.behavior == PlanningFactor::TURN_RIGHT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, true, p.common.range.forward,
-        p.common.range.backward);
+        current_lanes, odometry_ptr_->pose.pose, route_handler_, true, p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
-      const auto half_lanes = [&ego_succeeding_lanes, this]() {
+      const auto half_lanes = [&current_lanes, this]() {
         lanelet::ConstLanelets ret{};
-        for (const auto & lane : ego_succeeding_lanes) {
+        for (const auto & lane : current_lanes) {
           ret.push_back(
             utils::generateHalfLanelet(lane, true, 0.5 * vehicle_info_.vehicle_width_m));
         }
@@ -265,21 +258,24 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
     return true;
   }
 
+  const auto p = param_listener_->get_params();
+
+  const auto current_lanes = route_handler_->getLaneletSequence(
+    closest_lanelet, odometry_ptr_->pose.pose, p.common.range.forward, p.common.range.backward);
+
   const auto is_with_current_lane =
-    utils::isWithinLanes(closest_lanelet, odometry_ptr_->pose.pose, route_handler_, vehicle_info_);
+    utils::is_within_lane(closest_lanelet, odometry_ptr_->pose.pose, route_handler_, vehicle_info_);
   if (!is_with_current_lane) {
     return true;
   }
 
-  const auto parameters = param_listener_->get_params();
-
   PredictedObjects objects;
   for (const auto & factor : factors_ptr_->factors) {
-    if (parameters.scene_map.count(factor.module) == 0) {
+    if (p.scene_map.count(factor.module) == 0) {
       continue;
     }
 
-    if (!utils::should_activate(factor, parameters)) {
+    if (!utils::should_activate(factor, p)) {
       continue;
     }
 
@@ -287,16 +283,15 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
       continue;
     }
 
-    const auto detection_lanes = generate_detection_area(factor, closest_lanelet);
+    const auto detection_lanes = generate_detection_area(factor, current_lanes);
     debug.detection_lanes.insert(
       debug.detection_lanes.end(), detection_lanes.begin(), detection_lanes.end());
 
     const auto [targets, others] =
       behavior_path_planner::utils::path_safety_checker::separateObjectsByLanelets(
         *object_ptr_, detection_lanes,
-        [&factor, &parameters](
-          const auto & obj, const auto & lane, const auto yaw_threshold = M_PI_2) {
-          if (!utils::is_target(obj, factor, parameters)) {
+        [&factor, &p](const auto & obj, const auto & lane, const auto yaw_threshold = M_PI_2) {
+          if (!utils::is_target(obj, factor, p)) {
             return false;
           }
           return behavior_path_planner::utils::path_safety_checker::isPolygonOverlapLanelet(
@@ -308,11 +303,11 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
   const auto now = this->now();
   if (is_safe(objects, debug)) {
     last_safe_time_ = now;
-    if ((now - last_unsafe_time_).seconds() > parameters.common.off_time_buffer) {
+    if ((now - last_unsafe_time_).seconds() > p.common.off_time_buffer) {
       return true;
     }
   } else {
-    if ((now - last_safe_time_).seconds() < parameters.common.on_time_buffer) {
+    if ((now - last_safe_time_).seconds() < p.common.on_time_buffer) {
       return true;
     }
   }
@@ -322,7 +317,7 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
 
 bool RearObstacleCheckerNode::is_safe(const PredictedObjects & objects, DebugData & debug) const
 {
-  const auto parameters = param_listener_->get_params();
+  const auto p = param_listener_->get_params();
   // const auto ego_coordinate_on_arc =
   //   lanelet::utils::getArcCoordinates(lanelets, odometry_ptr_->pose.pose);
 
@@ -335,8 +330,7 @@ bool RearObstacleCheckerNode::is_safe(const PredictedObjects & objects, DebugDat
 
   std::for_each(objects.objects.begin(), objects.objects.end(), [&](const auto & object) {
     target_objects.push_back(behavior_path_planner::utils::path_safety_checker::transform(
-      object, parameters.common.predicted_path.time_horizon,
-      parameters.common.predicted_path.time_resolution));
+      object, p.common.predicted_path.time_horizon, p.common.predicted_path.time_resolution));
   });
 
   const bool limit_to_max_velocity = false;
@@ -388,7 +382,7 @@ bool RearObstacleCheckerNode::is_safe(const PredictedObjects & objects, DebugDat
   return true;
 }
 
-void RearObstacleCheckerNode::publish_marker(const DebugData & debug)
+void RearObstacleCheckerNode::publish_marker(const DebugData & debug) const
 {
   MarkerArray msg;
 

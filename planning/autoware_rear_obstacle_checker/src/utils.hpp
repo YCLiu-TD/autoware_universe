@@ -53,7 +53,9 @@ namespace autoware::rear_obstacle_checker::utils
 using visualization_msgs::msg::Marker;
 using visualization_msgs::msg::MarkerArray;
 
-std::uint8_t getHighestProbLabel(
+namespace
+{
+std::uint8_t get_highest_prob_label(
   const std::vector<autoware_perception_msgs::msg::ObjectClassification> & classifications)
 {
   std::uint8_t label = autoware_perception_msgs::msg::ObjectClassification::UNKNOWN;
@@ -66,6 +68,7 @@ std::uint8_t getHighestProbLabel(
   }
   return label;
 }
+}  // namespace
 
 bool should_activate(
   const autoware_internal_planning_msgs::msg::PlanningFactor & factor,
@@ -124,7 +127,7 @@ bool is_target(
 
   const auto config = parameters.scene_map.at(factor.module);
 
-  const auto label = getHighestProbLabel(object.classification);
+  const auto label = get_highest_prob_label(object.classification);
   switch (label) {
     case ObjectClassification::UNKNOWN:
       return std::any_of(
@@ -181,22 +184,19 @@ lanelet::ConstLanelets get_previous_lanes_recursively(
 }
 
 lanelet::ConstLanelets get_adjacent_lanes(
-  const lanelet::ConstLanelet & current_lane, const geometry_msgs::msg::Pose & vehicle_pose,
+  const lanelet::ConstLanelets & current_lanes, const geometry_msgs::msg::Pose & vehicle_pose,
   const std::shared_ptr<autoware::route_handler::RouteHandler> & route_handler, const bool is_right,
-  const double forward_distance, const double backward_distance)
+  const double backward_distance)
 {
-  const auto ego_succeeding_lanes = route_handler->getLaneletSequence(
-    current_lane, vehicle_pose, backward_distance, forward_distance);
-  const auto ego_coordinate_on_arc =
-    lanelet::utils::getArcCoordinates(ego_succeeding_lanes, vehicle_pose);
+  const auto ego_coordinate_on_arc = lanelet::utils::getArcCoordinates(current_lanes, vehicle_pose);
 
   lanelet::ConstLanelets lanes{};
 
-  const auto exist_in_current_lane = [&ego_succeeding_lanes](const auto id) {
+  const auto exist_in_current_lane = [&current_lanes](const auto id) {
     const auto itr = std::find_if(
-      ego_succeeding_lanes.begin(), ego_succeeding_lanes.end(),
+      current_lanes.begin(), current_lanes.end(),
       [&id](const auto & lane) { return lane.id() == id; });
-    return itr != ego_succeeding_lanes.end();
+    return itr != current_lanes.end();
   };
 
   const auto exist = [&lanes](const auto id) {
@@ -206,7 +206,7 @@ lanelet::ConstLanelets get_adjacent_lanes(
   };
 
   double length = 0.0;
-  for (const auto & lane : ego_succeeding_lanes) {
+  for (const auto & lane : current_lanes) {
     const auto residual_length = backward_distance - ego_coordinate_on_arc.length + length;
     const auto opt_left_lane = route_handler->getLeftLanelet(lane, true, false);
     if (!is_right && opt_left_lane) {
@@ -365,7 +365,7 @@ lanelet::ConstLanelet generate_offset_lanelet(
   return half_lanelet;
 }
 
-bool isWithinLanes(
+bool is_within_lane(
   const lanelet::ConstLanelet & closest_lanelet, const geometry_msgs::msg::Pose & ego_pose,
   const std::shared_ptr<autoware::route_handler::RouteHandler> & route_handler,
   const autoware::vehicle_info_utils::VehicleInfo & vehicle_info)
