@@ -91,7 +91,7 @@ private:
     const PlanningFactor & factor, const lanelet::ConstLanelets & current_lanes) const
     -> lanelet::BasicPolygons3d;
 
-  auto generate_detection_area(
+  auto generate_detection_area_for_object(
     const PlanningFactor & factor, const lanelet::ConstLanelets & current_lanes) const
     -> lanelet::ConstLanelets;
 

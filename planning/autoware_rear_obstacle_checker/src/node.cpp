@@ -179,10 +179,9 @@ auto RearObstacleCheckerNode::generate_detection_area_for_pointcloud(
 
   lanelet::BasicPolygons3d detection_polygons{};
 
-  // bool get_successive_lanes = true;
-
-  if (factor.behavior == PlanningFactor::SHIFT_LEFT) {
-    {
+  if (
+    factor.behavior == PlanningFactor::SHIFT_LEFT || factor.behavior == PlanningFactor::TURN_LEFT) {
+    if (config.adjacent_lane) {
       const auto adjacent_polygons = utils::get_adjacent_polygons(
         current_lanes, odometry_ptr_->pose.pose, route_handler_, false,
         p.common.range.pointcloud.forward, p.common.range.pointcloud.backward);
@@ -190,22 +189,25 @@ auto RearObstacleCheckerNode::generate_detection_area_for_pointcloud(
         detection_polygons.end(), adjacent_polygons.begin(), adjacent_polygons.end());
     }
 
-    //     {
-    //       const auto half_lanes = [&current_lanes, this]() {
-    //         lanelet::ConstLanelets ret{};
-    //         for (const auto & lane : current_lanes) {
-    //           ret.push_back(
-    //             utils::generateHalfLanelet(lane, false, 0.5 * vehicle_info_.vehicle_width_m));
-    //         }
-    //         return ret;
-    //       }();
-    //       detection_polygons.push_back(utils::generate_detection_polygon(half_lanes,
-    //       odometry_ptr_->pose.pose, 20.0, 20.0));
-    //     }
+    if (config.current_lane) {
+      const auto half_lanes = [&current_lanes, this]() {
+        lanelet::ConstLanelets ret{};
+        for (const auto & lane : current_lanes) {
+          ret.push_back(
+            utils::generateHalfLanelet(lane, false, 0.5 * vehicle_info_.vehicle_width_m));
+        }
+        return ret;
+      }();
+      detection_polygons.push_back(utils::generate_detection_polygon(
+        half_lanes, odometry_ptr_->pose.pose, p.common.range.pointcloud.forward,
+        p.common.range.pointcloud.backward));
+    }
   }
 
-  if (factor.behavior == PlanningFactor::SHIFT_RIGHT) {
-    {
+  if (
+    factor.behavior == PlanningFactor::SHIFT_RIGHT ||
+    factor.behavior == PlanningFactor::TURN_RIGHT) {
+    if (config.adjacent_lane) {
       const auto adjacent_polygons = utils::get_adjacent_polygons(
         current_lanes, odometry_ptr_->pose.pose, route_handler_, true,
         p.common.range.pointcloud.forward, p.common.range.pointcloud.backward);
@@ -213,24 +215,25 @@ auto RearObstacleCheckerNode::generate_detection_area_for_pointcloud(
         detection_polygons.end(), adjacent_polygons.begin(), adjacent_polygons.end());
     }
 
-    // {
-    //   const auto half_lanes = [&current_lanes, this]() {
-    //     lanelet::ConstLanelets ret{};
-    //     for (const auto & lane : current_lanes) {
-    //       ret.push_back(
-    //         utils::generateHalfLanelet(lane, true, 0.5 * vehicle_info_.vehicle_width_m));
-    //     }
-    //     return ret;
-    //   }();
-    //   detection_polygons.push_back(utils::generate_detection_polygon(half_lanes,
-    //   odometry_ptr_->pose.pose, 20.0, 20.0));
-    // }
+    if (config.current_lane) {
+      const auto half_lanes = [&current_lanes, this]() {
+        lanelet::ConstLanelets ret{};
+        for (const auto & lane : current_lanes) {
+          ret.push_back(
+            utils::generateHalfLanelet(lane, true, 0.5 * vehicle_info_.vehicle_width_m));
+        }
+        return ret;
+      }();
+      detection_polygons.push_back(utils::generate_detection_polygon(
+        half_lanes, odometry_ptr_->pose.pose, p.common.range.pointcloud.forward,
+        p.common.range.pointcloud.backward));
+    }
   }
 
   return detection_polygons;
 }
 
-auto RearObstacleCheckerNode::generate_detection_area(
+auto RearObstacleCheckerNode::generate_detection_area_for_object(
   const PlanningFactor & factor, const lanelet::ConstLanelets & current_lanes) const
   -> lanelet::ConstLanelets
 {
@@ -242,7 +245,8 @@ auto RearObstacleCheckerNode::generate_detection_area(
 
   bool get_successive_lanes = false;
 
-  if (factor.behavior == PlanningFactor::SHIFT_LEFT) {
+  if (
+    factor.behavior == PlanningFactor::SHIFT_LEFT || factor.behavior == PlanningFactor::TURN_LEFT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
         current_lanes, odometry_ptr_->pose.pose, route_handler_, false,
@@ -262,47 +266,9 @@ auto RearObstacleCheckerNode::generate_detection_area(
     }
   }
 
-  if (factor.behavior == PlanningFactor::TURN_LEFT) {
-    if (config.adjacent_lane) {
-      const auto adjacent_lanes = utils::get_adjacent_lanes(
-        current_lanes, odometry_ptr_->pose.pose, route_handler_, false,
-        p.common.range.object.backward, true, get_successive_lanes);
-      detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
-    }
-    if (config.current_lane) {
-      const auto half_lanes = [&current_lanes, this]() {
-        lanelet::ConstLanelets ret{};
-        for (const auto & lane : current_lanes) {
-          ret.push_back(
-            utils::generateHalfLanelet(lane, false, 0.5 * vehicle_info_.vehicle_width_m));
-        }
-        return ret;
-      }();
-      detection_lanes.insert(detection_lanes.end(), half_lanes.begin(), half_lanes.end());
-    }
-  }
-
-  if (factor.behavior == PlanningFactor::SHIFT_RIGHT) {
-    if (config.adjacent_lane) {
-      const auto adjacent_lanes = utils::get_adjacent_lanes(
-        current_lanes, odometry_ptr_->pose.pose, route_handler_, true,
-        p.common.range.object.backward, true, get_successive_lanes);
-      detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
-    }
-    if (config.current_lane) {
-      const auto half_lanes = [&current_lanes, this]() {
-        lanelet::ConstLanelets ret{};
-        for (const auto & lane : current_lanes) {
-          ret.push_back(
-            utils::generateHalfLanelet(lane, true, 0.5 * vehicle_info_.vehicle_width_m));
-        }
-        return ret;
-      }();
-      detection_lanes.insert(detection_lanes.end(), half_lanes.begin(), half_lanes.end());
-    }
-  }
-
-  if (factor.behavior == PlanningFactor::TURN_RIGHT) {
+  if (
+    factor.behavior == PlanningFactor::SHIFT_RIGHT ||
+    factor.behavior == PlanningFactor::TURN_RIGHT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
         current_lanes, odometry_ptr_->pose.pose, route_handler_, true,
@@ -374,7 +340,7 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
       continue;
     }
 
-    const auto detection_lanes = generate_detection_area(factor, current_lanes);
+    const auto detection_lanes = generate_detection_area_for_object(factor, current_lanes);
     debug.detection_lanes.insert(
       debug.detection_lanes.end(), detection_lanes.begin(), detection_lanes.end());
 

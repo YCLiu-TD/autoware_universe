@@ -288,22 +288,6 @@ lanelet::BasicPolygons3d get_previous_polygons_recursively(
     return ret;
   }
 
-  // const auto prev_lanes = route_handler->getPreviousLanelets(lanes.front());
-  // if (prev_lanes.empty()) {
-  //     std::cout << __LINE__ << ":";
-  //     for (const auto & tmp : lanes) {
-  //       std::cout << tmp.id() << ",";
-  //     }
-  //     std::cout << std::endl;
-  //   const auto total_length = lanelet::utils::getLaneletLength2d(lanes);
-  //   std::cout << __LINE__ << ":" << total_length << std::endl;
-  //   const auto polygon = lanelet::utils::getPolygonFromArcLength(
-  //       lanes, total_length - residual_distance - backward_distance, total_length -
-  //       residual_distance);
-  //   ret.push_back(polygon.basicPolygon());
-  //   return ret;
-  // }
-
   for (const auto & prev_lane : route_handler->getPreviousLanelets(lanes.front())) {
     lanelet::ConstLanelets pushed_lanes = lanes;
     pushed_lanes.insert(pushed_lanes.begin(), prev_lane);
@@ -328,49 +312,60 @@ lanelet::BasicPolygons3d get_adjacent_polygons(
 {
   const auto ego_coordinate_on_arc = lanelet::utils::getArcCoordinates(current_lanes, vehicle_pose);
 
-  lanelet::ConstLanelets lanes{};
-
   lanelet::BasicPolygons3d ret{};
 
-  lanelet::ConstLanelets tmp_lanes{};
+  lanelet::ConstLanelets root{};
+
   double length = 0.0;
   for (const auto & lane : current_lanes) {
-    length += lanelet::utils::getLaneletLength2d(lane);
+    const auto total_length = length + lanelet::utils::getLaneletLength2d(lane);
+    const auto residual_distance = total_length - ego_coordinate_on_arc.length - forward_distance;
 
-    // const auto residual_length = backward_distance - ego_coordinate_on_arc.length + length;
+    if (!is_right) {
+      const auto opt_left_lane = route_handler->getLeftLanelet(lane, true, false);
+      if (opt_left_lane.has_value()) {
+        root = {opt_left_lane.value()};
+      }
 
-    // const auto opt_left_lane = route_handler->getLeftLanelet(lane, true, false);
-    // if (!is_right) {
-    //   if (opt_left_lane.has_value()) {
-    //     tmp_lanes = {opt_left_lane.value()};
-    //   } else if (!tmp_lanes.empty()) {
-    //     const auto polygons = get_previous_polygons_recursively(tmp_lanes, residual_length,
-    //     route_handler); ret.insert(ret.end(), polygons.begin(), polygons.end());
-    //     tmp_lanes.clear();
-    //   }
-    // }
-
-    const auto opt_right_lane = route_handler->getRightLanelet(lane, true, false);
-    if (is_right) {
-      if (opt_right_lane.has_value()) {
-        if (length - ego_coordinate_on_arc.length > forward_distance) {
-          tmp_lanes = {opt_right_lane.value()};
-          const auto s1 = length - ego_coordinate_on_arc.length - forward_distance;
-          const auto s2 = s1 + forward_distance + backward_distance;
-          const auto polygons = get_previous_polygons_recursively(tmp_lanes, s1, s2, route_handler);
-          ret.insert(ret.end(), polygons.begin(), polygons.end());
-          return ret;
-        } else {
-          tmp_lanes = {opt_right_lane.value()};
-        }
-      } else if (!tmp_lanes.empty()) {
-        const auto s1 = 0.0;
-        const auto s2 = length - ego_coordinate_on_arc.length + backward_distance;
-        const auto polygons = get_previous_polygons_recursively(tmp_lanes, s1, s2, route_handler);
+      if (opt_left_lane.has_value() && residual_distance > 0.0) {
+        const auto polygons = get_previous_polygons_recursively(
+          root, residual_distance, residual_distance + forward_distance + backward_distance,
+          route_handler);
         ret.insert(ret.end(), polygons.begin(), polygons.end());
-        tmp_lanes.clear();
+        return ret;
+      }
+
+      if (!opt_left_lane.has_value()) {
+        const auto polygons = get_previous_polygons_recursively(
+          root, 0.0, length - ego_coordinate_on_arc.length + backward_distance, route_handler);
+        ret.insert(ret.end(), polygons.begin(), polygons.end());
+        root.clear();
       }
     }
+
+    if (is_right) {
+      const auto opt_right_lane = route_handler->getRightLanelet(lane, true, false);
+      if (opt_right_lane.has_value()) {
+        root = {opt_right_lane.value()};
+      }
+
+      if (opt_right_lane.has_value() && residual_distance > 0.0) {
+        const auto polygons = get_previous_polygons_recursively(
+          root, residual_distance, residual_distance + forward_distance + backward_distance,
+          route_handler);
+        ret.insert(ret.end(), polygons.begin(), polygons.end());
+        return ret;
+      }
+
+      if (!opt_right_lane.has_value()) {
+        const auto polygons = get_previous_polygons_recursively(
+          root, 0.0, length - ego_coordinate_on_arc.length + backward_distance, route_handler);
+        ret.insert(ret.end(), polygons.begin(), polygons.end());
+        root.clear();
+      }
+    }
+
+    length += lanelet::utils::getLaneletLength2d(lane);
   }
 
   return ret;
@@ -404,18 +399,6 @@ auto calculate_overhang_distance(
   return std::make_pair(lateral_distances.front(), lateral_distances.back());
 }
 
-// std::optional<lanelet::CompoundPolygon3d> generate_polygon(
-//   const lanelet::ConstLanelets & lanelets, const geometry_msgs::msg::Pose & ego_pose,
-//   const double forward_detection_length, const double backward_detection_length)
-// {
-//   const auto ego_coordinate_on_arc = lanelet::utils::getArcCoordinates(lanelets,
-//   ego_pose).length;
-
-//   return lanelet::utils::getPolygonFromArcLength(
-//     lanelets, ego_coordinate_on_arc - backward_detection_length,
-//     ego_coordinate_on_arc + forward_detection_length);
-// }
-
 MarkerArray create_polygon_marker_array(
   const lanelet::BasicPolygons3d & polygons, const std::string & ns)
 {
@@ -436,26 +419,6 @@ MarkerArray create_polygon_marker_array(
     }
     msg.markers.push_back(marker);
   }
-
-  // visualization_msgs::msg::Marker marker{};
-  // marker.header.frame_id = "map";
-
-  // marker.ns = ns;
-  // marker.id = 0L;
-  // marker.lifetime = rclcpp::Duration::from_seconds(0.3);
-  // marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
-  // marker.action = visualization_msgs::msg::Marker::ADD;
-  // marker.pose.orientation = autoware_utils::create_marker_orientation(0, 0, 0, 1.0);
-  // marker.scale = autoware_utils::create_marker_scale(0.1, 0.0, 0.0);
-  // if (should_check) {
-  //   if (is_safe) {
-  //     marker.color = autoware_utils::create_marker_color(0.0, 1.0, 0.0, 0.999);
-  //   } else {
-  //     marker.color = autoware_utils::create_marker_color(1.0, 0.0, 0.0, 0.999);
-  //   }
-  // } else {
-  //   marker.color = autoware_utils::create_marker_color(1.0, 1.0, 1.0, 0.999);
-  // }
 
   return msg;
 }
