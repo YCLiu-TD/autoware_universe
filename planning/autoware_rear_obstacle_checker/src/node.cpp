@@ -166,21 +166,20 @@ auto RearObstacleCheckerNode::generate_detection_area(
   const PlanningFactor & factor, const lanelet::ConstLanelet & closest_lanelet) const
   -> lanelet::ConstLanelets
 {
-  const auto parameters = param_listener_->get_params();
+  const auto p = param_listener_->get_params();
 
-  const auto config = parameters.scene_map.at(factor.module);
+  const auto config = p.scene_map.at(factor.module);
 
-  constexpr double buffer = 0.0;
   const auto ego_succeeding_lanes = route_handler_->getLaneletSequence(
-    closest_lanelet, odometry_ptr_->pose.pose, parameters.area.range.forward + buffer,
-    parameters.area.range.backward);
+    closest_lanelet, odometry_ptr_->pose.pose, p.common.range.forward, p.common.range.backward);
 
   lanelet::ConstLanelets detection_lanes{};
 
   if (factor.behavior == PlanningFactor::SHIFT_LEFT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, false, 30.0, 100.0);
+        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, false, p.common.range.forward,
+        p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
@@ -199,7 +198,8 @@ auto RearObstacleCheckerNode::generate_detection_area(
   if (factor.behavior == PlanningFactor::TURN_LEFT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, false, 30.0, 100.0);
+        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, false, p.common.range.forward,
+        p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
@@ -218,7 +218,8 @@ auto RearObstacleCheckerNode::generate_detection_area(
   if (factor.behavior == PlanningFactor::SHIFT_RIGHT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, true, 30.0, 100.0);
+        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, true, p.common.range.forward,
+        p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
@@ -237,7 +238,8 @@ auto RearObstacleCheckerNode::generate_detection_area(
   if (factor.behavior == PlanningFactor::TURN_RIGHT) {
     if (config.adjacent_lane) {
       const auto adjacent_lanes = utils::get_adjacent_lanes(
-        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, true, 30.0, 100.0);
+        closest_lanelet, odometry_ptr_->pose.pose, route_handler_, true, p.common.range.forward,
+        p.common.range.backward);
       detection_lanes.insert(detection_lanes.end(), adjacent_lanes.begin(), adjacent_lanes.end());
     }
     if (config.current_lane) {
@@ -306,11 +308,11 @@ bool RearObstacleCheckerNode::is_safe(DebugData & debug)
   const auto now = this->now();
   if (is_safe(objects, debug)) {
     last_safe_time_ = now;
-    if ((now - last_unsafe_time_).seconds() > 1.0) {
+    if ((now - last_unsafe_time_).seconds() > parameters.common.off_time_buffer) {
       return true;
     }
   } else {
-    if ((now - last_safe_time_).seconds() < 1.0) {
+    if ((now - last_safe_time_).seconds() < parameters.common.on_time_buffer) {
       return true;
     }
   }
@@ -333,8 +335,8 @@ bool RearObstacleCheckerNode::is_safe(const PredictedObjects & objects, DebugDat
 
   std::for_each(objects.objects.begin(), objects.objects.end(), [&](const auto & object) {
     target_objects.push_back(behavior_path_planner::utils::path_safety_checker::transform(
-      object, parameters.logic.predicted_path.time_horizon,
-      parameters.logic.predicted_path.time_resolution));
+      object, parameters.common.predicted_path.time_horizon,
+      parameters.common.predicted_path.time_resolution));
   });
 
   const bool limit_to_max_velocity = false;

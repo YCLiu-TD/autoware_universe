@@ -123,14 +123,12 @@ private:
 
   std::shared_ptr<autoware::route_handler::RouteHandler> route_handler_;
 
-  // parameter
   std::shared_ptr<rear_obstacle_checker_node::ParamListener> param_listener_;
 
   std::unique_ptr<diagnostic_updater::Updater> diag_updater_;
 
   autoware::vehicle_info_utils::VehicleInfo vehicle_info_;
 
-  // data
   Odometry::ConstSharedPtr odometry_ptr_;
 
   PointCloud2::ConstSharedPtr pointcloud_ptr_;
@@ -151,13 +149,13 @@ private:
     const auto p = param_listener_->get_params();
 
     behavior_path_planner::utils::path_safety_checker::EgoPredictedPathParams params{};
-    params.min_velocity = p.logic.predicted_path.min_velocity;
-    params.max_velocity = p.logic.predicted_path.max_velocity;
-    params.acceleration = p.logic.predicted_path.acceleration;
-    params.time_horizon_for_front_object = p.logic.predicted_path.time_horizon;
-    params.time_horizon_for_rear_object = p.logic.predicted_path.time_horizon;
-    params.time_resolution = p.logic.predicted_path.time_resolution;
-    params.delay_until_departure = p.logic.predicted_path.delay_until_departure;
+    params.min_velocity = p.common.predicted_path.min_velocity;
+    params.max_velocity = p.common.predicted_path.max_velocity;
+    params.acceleration = p.common.predicted_path.acceleration;
+    params.time_horizon_for_front_object = p.common.predicted_path.time_horizon;
+    params.time_horizon_for_rear_object = p.common.predicted_path.time_horizon;
+    params.time_resolution = p.common.predicted_path.time_resolution;
+    params.delay_until_departure = p.common.predicted_path.delay_until_departure;
 
     return params;
   }
@@ -169,14 +167,14 @@ private:
 
     behavior_path_planner::utils::path_safety_checker::RSSparams params{};
 
-    params.extended_polygon_policy = p.logic.rss.extended_polygon_policy;
-    params.longitudinal_distance_min_threshold = p.logic.rss.longitudinal_distance_min_threshold;
-    params.longitudinal_velocity_delta_time = p.logic.rss.longitudinal_velocity_delta_time;
-    params.front_vehicle_deceleration = p.logic.rss.vehicle_deceleration;
-    params.rear_vehicle_deceleration = p.logic.rss.vehicle_deceleration;
-    params.rear_vehicle_reaction_time = p.logic.rss.vehicle_reaction_time;
-    params.rear_vehicle_safety_time_margin = p.logic.rss.vehicle_safety_time_margin;
-    params.lateral_distance_max_threshold = p.logic.rss.lateral_distance_max_threshold;
+    params.extended_polygon_policy = p.common.rss.extended_polygon_policy;
+    params.longitudinal_distance_min_threshold = p.common.rss.longitudinal_distance_min_threshold;
+    params.longitudinal_velocity_delta_time = p.common.rss.longitudinal_velocity_delta_time;
+    params.front_vehicle_deceleration = p.common.rss.vehicle_deceleration;
+    params.rear_vehicle_deceleration = p.common.rss.vehicle_deceleration;
+    params.rear_vehicle_reaction_time = p.common.rss.vehicle_reaction_time;
+    params.rear_vehicle_safety_time_margin = p.common.rss.vehicle_safety_time_margin;
+    params.lateral_distance_max_threshold = p.common.rss.lateral_distance_max_threshold;
 
     return params;
   }
@@ -190,8 +188,8 @@ private:
 
     params.forward_margin = 0.0;
     params.backward_margin = 0.0;
-    params.lat_margin = p.logic.rss.lateral_distance_max_threshold;
-    params.time_horizon = p.logic.predicted_path.time_horizon;
+    params.lat_margin = p.common.rss.lateral_distance_max_threshold;
+    params.time_horizon = p.common.predicted_path.time_horizon;
 
     return params;
   }

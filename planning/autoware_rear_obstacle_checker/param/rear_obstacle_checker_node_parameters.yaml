@@ -1,41 +1,22 @@
 rear_obstacle_checker_node:
-  area:
+  common:
+    on_time_buffer:
+      type: double
+      validation:
+        gt_eq<>: [0.0]
+    off_time_buffer:
+      type: double
+      validation:
+        gt_eq<>: [0.0]
     range:
       forward:
         type: double
+        validation:
+          gt_eq<>: [0.0]
       backward:
         type: double
-
-  scene:
-    type: string_array
-    validation:
-      unique<>: []
-
-  __map_scene:
-    topic:
-      type: string
-    behavior:
-      type: string_array
-      validation:
-        unique<>: []
-        not_empty<>: []
-        subset_of<>: [[slow_down, stop, shift_left, shift_right, turn_left, turn_right]]
-    safety_condition:
-      type: string
-      validation:
-        one_of<>: [[safe, unsafe, both]]
-    target_type:
-      type: string_array
-      validation:
-        unique<>: []
-        not_empty<>: []
-        subset_of<>: [[bicycle, bus, car, motorcycle, pedestrian, trailer, truck, unknown]]
-    current_lane:
-      type: bool
-    adjacent_lane:
-      type: bool
-
-  logic:
+        validation:
+          gt_eq<>: [0.0]
     predicted_path:
       min_velocity:
         type: double
@@ -64,3 +45,53 @@ rear_obstacle_checker_node:
         type: double
       longitudinal_velocity_delta_time:
         type: double
+
+  scene:
+    type: string_array
+    default_value:
+      [
+        static_obstacle_avoidance,
+        lane_change_left,
+        lane_change_right,
+        pull_out,
+        pull_over,
+        behavior_path_planner,
+      ]
+    validation:
+      unique<>: []
+      subset_of<>:
+        [
+          [
+            static_obstacle_avoidance,
+            lane_change_left,
+            lane_change_right,
+            pull_out,
+            pull_over,
+            blind_spot,
+            behavior_path_planner,
+          ],
+        ]
+
+  __map_scene:
+    topic:
+      type: string
+    behavior:
+      type: string_array
+      validation:
+        unique<>: []
+        not_empty<>: []
+        subset_of<>: [[slow_down, stop, shift_left, shift_right, turn_left, turn_right]]
+    safety_condition:
+      type: string
+      validation:
+        one_of<>: [[safe, unsafe, both]]
+    target_type:
+      type: string_array
+      validation:
+        unique<>: []
+        not_empty<>: []
+        subset_of<>: [[bicycle, bus, car, motorcycle, pedestrian, trailer, truck, unknown]]
+    current_lane:
+      type: bool
+    adjacent_lane:
+      type: bool

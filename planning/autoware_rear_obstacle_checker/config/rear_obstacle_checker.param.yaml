@@ -1,11 +1,28 @@
 /**:
   ros__parameters:
-    area:
+    common:
+      on_time_buffer: 0.3
+      off_time_buffer: 0.3
       range:
         forward: 5.0
         backward: 50.0
-
-    scene: [static_obstacle_avoidance, lane_change_left, lane_change_right, pull_out, pull_over, behavior_path_planner]
+      predicted_path:
+        # predicted path parameters
+        min_velocity: 1.38                              # [m/s]
+        max_velocity: 50.0                              # [m/s]
+        acceleration: 1.50
+        time_resolution: 0.5                            # [s]
+        time_horizon: 3.0
+        delay_until_departure: 0.0                      # [s]
+      rss:
+        # rss parameters
+        extended_polygon_policy: rectangle             # [-] select "rectangle" or "along_path"
+        vehicle_deceleration: -2.0               # [m/ss]
+        vehicle_reaction_time: 2.0                 # [s]
+        vehicle_safety_time_margin: 1.0            # [s]
+        lateral_distance_max_threshold: 1.0             # [m]
+        longitudinal_distance_min_threshold: 3.0        # [m]
+        longitudinal_velocity_delta_time: 0.0           # [s]
 
     static_obstacle_avoidance:
       topic: /planning/planning_factors/static_obstacle_avoidance
@@ -54,22 +71,3 @@
       target_type: [bicycle, motorcycle, pedestrian]
       current_lane: true
       adjacent_lane: false
-
-    logic:
-      predicted_path:
-        # predicted path parameters
-        min_velocity: 1.38                              # [m/s]
-        max_velocity: 50.0                              # [m/s]
-        acceleration: 1.50
-        time_resolution: 0.5                            # [s]
-        time_horizon: 3.0
-        delay_until_departure: 0.0                      # [s]
-      rss:
-        # rss parameters
-        extended_polygon_policy: rectangle             # [-] select "rectangle" or "along_path"
-        vehicle_deceleration: -2.0               # [m/ss]
-        vehicle_reaction_time: 2.0                 # [s]
-        vehicle_safety_time_margin: 1.0            # [s]
-        lateral_distance_max_threshold: 1.0             # [m]
-        longitudinal_distance_min_threshold: 3.0        # [m]
-        longitudinal_velocity_delta_time: 0.0           # [s]
