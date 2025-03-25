@@ -16,11 +16,11 @@
         delay_until_departure: 0.0                      # [s]
       rss:
         # rss parameters
-        extended_polygon_policy: rectangle             # [-] select "rectangle" or "along_path"
+        extended_polygon_policy: along_path             # [-] select "rectangle" or "along_path"
         vehicle_deceleration: -2.0               # [m/ss]
         vehicle_reaction_time: 2.0                 # [s]
         vehicle_safety_time_margin: 1.0            # [s]
-        lateral_distance_max_threshold: 1.0             # [m]
+        lateral_distance_max_threshold: 1.8             # [m]
         longitudinal_distance_min_threshold: 3.0        # [m]
         longitudinal_velocity_delta_time: 0.0           # [s]
 
